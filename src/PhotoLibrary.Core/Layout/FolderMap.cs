@@ -19,8 +19,11 @@ public enum FolderRole
     Hidden,
 }
 
-/// <summary>A top-level folder with its role and, for date-like ones, which layout its files follow.</summary>
-public sealed record FolderInfo(string Name, FolderRole Role, int Files, DateLayout? Detected, int Matching);
+/// <summary>
+/// A top-level folder with its role and, for date-like ones, which layout its files follow. <see cref="Empty"/>
+/// means nothing at all is inside (see <see cref="EmptyFolders"/>), not just no photos.
+/// </summary>
+public sealed record FolderInfo(string Name, FolderRole Role, int Files, DateLayout? Detected, int Matching, bool Empty = false);
 
 /// <summary>
 /// A snapshot of which top-level folders are dates and which are albums, for one operation (an organise plan,
@@ -154,7 +157,7 @@ public sealed class FolderMap
             if (new DirectoryInfo(dir).Attributes.HasFlag(FileAttributes.Hidden)) continue;
             var dirs = byTop.GetValueOrDefault(name) ?? [];
             var (layout, matching) = DateLayout.LooksLikeDate(name) ? DateLayout.Detect(name, dirs) : (null, 0);
-            result.Add(new FolderInfo(name, role, dirs.Count, layout, matching));
+            result.Add(new FolderInfo(name, role, dirs.Count, layout, matching, dirs.Count == 0 && EmptyFolders.IsEmpty(dir)));
         }
         return result.OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }

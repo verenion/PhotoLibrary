@@ -4,8 +4,12 @@ namespace PhotoLibrary.Core.Backup;
 
 public sealed record BackupProgress(int Done, int Total, string? Current);
 
+/// <summary>
+/// What a backup run did. <paramref name="Archived"/>: files no longer in the library (moved to _Archive in a plain
+/// backup; kept in older versions in an encrypted one). <paramref name="Expired"/>: old encrypted versions dropped.
+/// </summary>
 public sealed record BackupResult(int Copied, int Updated, int Unchanged, int Archived, long BytesCopied,
-    IReadOnlyList<string> Errors, TimeSpan Elapsed)
+    IReadOnlyList<string> Errors, TimeSpan Elapsed, int Expired = 0)
 {
     public bool Ok => Errors.Count == 0;
 }
@@ -30,6 +34,12 @@ public static class BackupService
     private static readonly long MTimeTolerance = TimeSpan.FromSeconds(2).Ticks;
 
     /// <summary>Why <paramref name="destination"/> can't be used, or null when it's fine.</summary>
+    public static string? ValidatePlain(string library, string destination) =>
+        Validate(library, destination) ?? (EncryptedBackup.IsEncryptedBackup(destination)
+            ? "This folder holds an encrypted Keepsake backup. Choose another folder for a plain copy, or switch the format to Encrypted."
+            : null);
+
+    /// <summary>Checks common to both formats: the folder exists and isn't inside (or around) the library.</summary>
     public static string? Validate(string library, string destination)
     {
         if (string.IsNullOrWhiteSpace(destination)) return "No backup folder chosen.";
@@ -50,7 +60,7 @@ public static class BackupService
         var started = DateTime.Now;
         var watch = System.Diagnostics.Stopwatch.StartNew();
         var errors = new List<string>();
-        if (Validate(library, destination) is { } problem) return new(0, 0, 0, 0, 0, [problem], watch.Elapsed);
+        if (ValidatePlain(library, destination) is { } problem) return new(0, 0, 0, 0, 0, [problem], watch.Elapsed);
 
         var lib = Normalise(library);
         var dest = Normalise(destination);
@@ -156,7 +166,7 @@ public static class BackupService
     }
 
     /// <summary>All files under <paramref name="root"/>, not following links. <paramref name="complete"/> is false if any folder couldn't be read.</summary>
-    private static List<string> ListFiles(string root, string[]? skipTopLevel, List<string> errors, out bool complete)
+    internal static List<string> ListFiles(string root, string[]? skipTopLevel, List<string> errors, out bool complete)
     {
         complete = true;
         var files = new List<string>();

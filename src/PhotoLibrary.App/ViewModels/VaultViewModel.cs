@@ -70,7 +70,11 @@ public partial class VaultViewModel : ViewModelBase, IDisposable
         Message = "Unlocking…";
         try
         {
-            await Vaults.UnlockAsync(Album.Album, Folder, Password);
+            if (!await Vaults.TryUnlockAsync(Album.Album, Folder, Password))
+            {
+                Message = VaultCrypto.WrongPassword;
+                return;
+            }
             Password = "";
             Message = "";
             IsLocked = false;

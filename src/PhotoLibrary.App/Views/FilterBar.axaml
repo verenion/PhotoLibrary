@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PhotoLibrary.App.ViewModels"
+             x:Class="PhotoLibrary.App.Views.FilterBar"
+             x:DataType="vm:LibraryFilterViewModel">
+    <!-- Sort and filters for a photo grid; the Library and each album have their own. -->
+    <WrapPanel>
+        <WrapPanel.Styles>
+            <Style Selector="ComboBox">
+                <Setter Property="Margin" Value="0,0,6,4" />
+                <Setter Property="MinWidth" Value="120" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Padding" Value="8,4" />
+            </Style>
+        </WrapPanel.Styles>
+        <ComboBox ItemsSource="{Binding SortOptions}" SelectedItem="{Binding Sort, Mode=TwoWay}" ToolTip.Tip="Order" />
+        <Border Width="1" Height="20" Background="{DynamicResource KsBorderBrush}" Margin="2,0,8,4" VerticalAlignment="Center" />
+        <ComboBox ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding Type, Mode=TwoWay}" ToolTip.Tip="File type" />
+        <ComboBox ItemsSource="{Binding CameraOptions}" SelectedItem="{Binding Camera, Mode=TwoWay}" ToolTip.Tip="Camera" MaxWidth="220" />
+        <ComboBox ItemsSource="{Binding LocationOptions}" SelectedItem="{Binding Location, Mode=TwoWay}" ToolTip.Tip="GPS location" />
+        <ComboBox ItemsSource="{Binding SizeOptions}" SelectedItem="{Binding Size, Mode=TwoWay}" ToolTip.Tip="File size" />
+        <ComboBox ItemsSource="{Binding ResolutionOptions}" SelectedItem="{Binding Resolution, Mode=TwoWay}" ToolTip.Tip="Megapixels" />
+        <ComboBox ItemsSource="{Binding ShapeOptions}" SelectedItem="{Binding Shape, Mode=TwoWay}" ToolTip.Tip="Landscape, portrait or square" />
+        <ComboBox ItemsSource="{Binding AlbumOptions}" SelectedItem="{Binding AlbumChoice, Mode=TwoWay}" ToolTip.Tip="Album membership" MaxWidth="220" />
+        <TextBox Text="{Binding NameContains, Mode=TwoWay}" PlaceholderText="File name contains…" Width="170" FontSize="12" Padding="8,4" Margin="0,0,6,4" />
+        <Button Content="Clear" Command="{Binding ClearCommand}" IsVisible="{Binding IsCustomised}" FontSize="12" Padding="8,4" Margin="0,0,0,4"
+                ToolTip.Tip="Remove every filter and go back to newest first" />
+    </WrapPanel>
+</UserControl>

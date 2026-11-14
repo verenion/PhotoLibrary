@@ -119,6 +119,19 @@ public class VaultTests : IDisposable
     }
 
     [Fact]
+    public void AWrongPasswordIsAnAnswerNotAnException()
+    {
+        var dir = VaultStore.FolderFor(_root, VaultStore.Create(_root, "right-password", Fast));
+        Assert.Null(VaultStore.TryUnlock(dir, "wrong-password"));
+        Assert.NotNull(VaultStore.TryUnlock(dir, "right-password"));
+        Assert.False(VaultStore.TryChangePassword(dir, "wrong-password", "new-password", Fast));
+        Assert.NotNull(VaultStore.TryUnlock(dir, "right-password")); // nothing changed
+
+        File.WriteAllText(Path.Combine(dir, VaultStore.KeyFileName), "{}"); // damage still throws
+        Assert.ThrowsAny<Exception>(() => VaultStore.TryUnlock(dir, "right-password"));
+    }
+
+    [Fact]
     public void ExportWritesADecryptedCopy()
     {
         var data = RandomNumberGenerator.GetBytes(2000);

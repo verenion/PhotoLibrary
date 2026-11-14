@@ -43,6 +43,7 @@
                                     <ComboBox Grid.Column="1" SelectedIndex="{Binding Choice, Mode=TwoWay}" MinWidth="150" VerticalAlignment="Center" Margin="12,0,0,0">
                                         <ComboBoxItem Content="Date folder" />
                                         <ComboBoxItem Content="Folder album" />
+                                        <ComboBoxItem Content="Delete empty folder" IsVisible="{Binding CanDelete}" />
                                     </ComboBox>
                                     <Border Grid.Row="1" Grid.ColumnSpan="2" Classes="warn" IsVisible="{Binding HasWarning}" Margin="0,8,0,0">
                                         <TextBlock Text="{Binding Warning}" TextWrapping="Wrap" FontSize="12" />

@@ -32,9 +32,17 @@ public sealed class VaultSession : IDisposable
     /// <summary>Checks the password (Argon2id, about half a second, off the UI thread). Throws on a wrong password.</summary>
     public async Task UnlockAsync(Album album, string folder, string password)
     {
-        var key = await Task.Run(() => VaultStore.Unlock(folder, password));
+        if (!await TryUnlockAsync(album, folder, password)) throw new VaultAuthenticationException(VaultCrypto.WrongPassword);
+    }
+
+    /// <summary>Unlocks the vault; false when the password is wrong (no exception, so the debugger stays quiet).</summary>
+    public async Task<bool> TryUnlockAsync(Album album, string folder, string password)
+    {
+        var key = await Task.Run(() => VaultStore.TryUnlock(folder, password));
+        if (key is null) return false;
         if (_keys.Remove(album.Id, out var old)) CryptographicOperations.ZeroMemory(old.Key);
         _keys[album.Id] = (key, DateTime.UtcNow);
+        return true;
     }
 
     /// <summary>The vault key, counting as use (resets the idle timer). Null when locked.</summary>

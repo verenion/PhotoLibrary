@@ -37,8 +37,10 @@ or GPU, and sensitive photos can be locked away in encrypted vaults.
 
 - Year › Month › Day tree beside a thumbnail grid grouped by day. Click a photo for a large preview with its
   capture date (and where that date came from), camera, size, GPS and Google Takeout description.
-- A filter bar narrows the grid by file type, camera, location, file size, megapixels, shape (landscape,
-  portrait, square), album and file name.
+- The bar above the grid sorts and filters it.
+  - **Sort:** newest first, oldest first, name, largest files first or most pixels first. The date orders keep the day headings.
+  - **Filters:** file type, camera, location, file size, megapixels, shape (landscape, portrait, square), album and file name.
+  - Each album has the same bar, with its own settings, so filtering an album doesn't change the Library view.
 - Each tile shows coloured dots for the albums the photo is in, and videos show their length.
 - Right-click any photo, or a Ctrl/Shift-click selection, to open it, show it in its folder, find similar photos,
   add it to an album, remove it from the library or delete it.
@@ -120,6 +122,8 @@ follow, and suggests that layout if it differs from the setting. Until you decid
 folders alone. *Settings › Library folders › Review folders…* lets you change any folder later. Changing a
 folder's role, or the date layout, never moves anything by itself: the next Organise does the re-filing.
 
+Folders that are completely empty also get a *Delete empty folder* option in the review, and it's chosen for them by default. Such a folder can contain empty sub-folders and Windows files like `desktop.ini`, but nothing else. A folder with no photos that still holds other files, such as documents, is never offered for deletion. Deleting happens when you press Save. Each folder is checked again just before it's deleted, and is left alone if anything has appeared in it since.
+
 Albums made by older versions in `_Albums\<name>` keep working where they are.
 
 ### Secure vaults
@@ -156,12 +160,51 @@ The encryption is described under [Vault format](#vault-format).
 
 ### Backup
 
-Pick a backup folder in *Settings › Backup*, ideally on another drive, and choose when to back up: only when you
-click *Back up now*, each time Keepsake opens, once a day or once a week. Backups run while Keepsake is open.
+Set up backups in *Settings › Backup*:
+1. Pick a format.
+2. Pick a folder, ideally on another drive or in a cloud folder such as OneDrive.
+3. Choose when to back up: only when you click *Back up now*, each time Keepsake opens, once a day or once a week.
+
+Only new and changed files are copied, so after the first run a backup takes seconds to minutes. Backups run while Keepsake is open.
+
+#### Encrypted (recommended)
+
+The backup folder can't be read without your password. That makes it safe to keep in OneDrive, Dropbox or on a drive that could be lost.
+
+**What's protected:**
+- **File contents:** each distinct file is encrypted as its own object, in the same format as vaults: AES-256-GCM, with a separate key for each file.
+- **Names, folders and dates:** these exist only inside encrypted *version lists*. Objects are named by a keyed hash, so nobody can check whether a particular known photo is in the backup.
+- Someone with the folder sees only how many objects there are and how big each one is.
+
+**Compression:** files are compressed (Brotli) when that saves space, such as the database and some RAW formats. Photos and videos are already compressed, so they're stored as they are.
+
+**Identical files** are stored once, however many copies the library has.
+
+**Password and recovery key:**
+- When you set up an encrypted backup, you choose a password and Keepsake shows a **recovery key** once. Either one opens the backup.
+- Keepsake remembers the backup's key on this PC, protected by your Windows sign-in (DPAPI), so scheduled backups run without asking.
+- On another PC, enter the password or recovery key once to connect to the backup.
+- *Change password…* takes the current password or the recovery key. The recovery key stays the same.
+- **Without the password or the recovery key, nobody can restore the backup, including you.**
+
+**Versions:**
+- Each backup run writes a version: a list of the whole library as it was at that moment.
+- A photo you delete, or that gets damaged, stays in the earlier versions.
+- *Keep earlier versions* (30 days, 90 days, 1 year or forever; 1 year by default) decides how far back you can go. After each backup, older versions are dropped, along with files that only those versions used.
+- The newest version is always kept.
+
+**Restore… and Check backup:**
+- *Restore…* lets you pick a version, a folder to restore into and, optionally, only paths containing some text, such as `2019` or `Camera Roll`.
+- Restoring never overwrites a file. Choosing *The library* as the destination brings back only what's missing.
+- Every restored file is checked against the fingerprint taken when it was backed up.
+- *Check backup* decrypts every file in the newest version and checks it, without writing anything.
+
+The rest of this section describes the plain copy.
+
+#### Plain copy
 
 - The backup has the same folders as the library, so it's an ordinary folder of photos you can browse or
-  restore by copying back.
-- Only new and changed files are copied, so after the first run a backup takes seconds to minutes.
+  restore by copying back. Nothing is encrypted.
 - Nothing in the backup is deleted or overwritten. When a file changes, or is moved or deleted in the library,
   the old backup copy moves to `_Archive\<date and time>\`. Delete old archive folders yourself when you need
   the space.

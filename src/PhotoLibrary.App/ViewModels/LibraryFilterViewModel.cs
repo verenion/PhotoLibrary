@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PhotoLibrary.App.Services;
@@ -8,7 +9,7 @@ using PhotoLibrary.Core.Db;
 namespace PhotoLibrary.App.ViewModels;
 
 /// <summary>
-/// The filter bar above the library grid. Every option is a plain string in a combo box, so the view is just
+/// The filter and sort bar above the library grid and an album's grid (each has its own instance). Every option is a plain string in a combo box, so the view is just
 /// combo boxes and a text box; <see cref="Matches"/> turns the choices into a predicate. Options that depend
 /// on the library (file types, cameras, albums) are rebuilt after each scan.
 /// </summary>
@@ -21,6 +22,7 @@ public partial class LibraryFilterViewModel : ViewModelBase
     public const string AnyRes = "Any resolution";
     public const string AnyShape = "Any shape", Landscape = "Landscape", Portrait = "Portrait", Square = "Square";
     public const string AnyAlbum = "Any album status", InAlbum = "In an album", NoAlbum = "Not in an album";
+    public const string Newest = "Newest first", Oldest = "Oldest first", ByName = "Name (A–Z)", Largest = "Largest files first", MostPixels = "Most pixels first";
 
     private static readonly (string Label, long Min, long Max)[] Sizes =
     [
@@ -50,6 +52,13 @@ public partial class LibraryFilterViewModel : ViewModelBase
     public string[] ResolutionOptions { get; } = Resolutions.Select(r => r.Label).ToArray();
     public string[] ShapeOptions { get; } = [AnyShape, Landscape, Portrait, Square];
     public ObservableCollection<string> AlbumOptions { get; } = [AnyAlbum, InAlbum, NoAlbum];
+    public string[] SortOptions { get; } = [Newest, Oldest, ByName, Largest, MostPixels];
+
+    /// <summary>How the grid is ordered. Not a filter: it doesn't count towards <see cref="IsActive"/>.</summary>
+    [ObservableProperty] public partial string Sort { get; set; } = Newest;
+
+    /// <summary>True when the grid isn't in its default state (a filter is on, or the order isn't newest first).</summary>
+    public bool IsCustomised => IsActive || Sort != Newest;
 
     [ObservableProperty] public partial string Type { get; set; } = AnyType;
     [ObservableProperty] public partial string Camera { get; set; } = AnyCamera;
@@ -73,6 +82,7 @@ public partial class LibraryFilterViewModel : ViewModelBase
     partial void OnShapeChanged(string value) => Raise();
     partial void OnAlbumChoiceChanged(string value) => Raise();
     partial void OnNameContainsChanged(string value) => Raise();
+    partial void OnSortChanged(string value) => Raise();
 
     private bool _suspend;
 
@@ -81,6 +91,7 @@ public partial class LibraryFilterViewModel : ViewModelBase
         if (_suspend) return;
         IsActive = Type != AnyType || Camera != AnyCamera || Location != Anywhere || Size != AnySize
                    || Resolution != AnyRes || Shape != AnyShape || AlbumChoice != AnyAlbum || NameContains.Trim().Length > 0;
+        OnPropertyChanged(nameof(IsCustomised));
         Changed?.Invoke();
     }
 
@@ -89,7 +100,7 @@ public partial class LibraryFilterViewModel : ViewModelBase
     {
         _suspend = true;
         Type = AnyType; Camera = AnyCamera; Location = Anywhere; Size = AnySize;
-        Resolution = AnyRes; Shape = AnyShape; AlbumChoice = AnyAlbum; NameContains = "";
+        Resolution = AnyRes; Shape = AnyShape; AlbumChoice = AnyAlbum; NameContains = ""; Sort = Newest;
         _suspend = false;
         Raise();
     }
@@ -131,6 +142,28 @@ public partial class LibraryFilterViewModel : ViewModelBase
         target.Clear();
         foreach (var i in items) target.Add(i);
         set(items.Contains(current) ? current : fallback);
+    }
+
+    /// <summary>
+    /// Orders records by the chosen sort and splits them into headed groups. Date orders group by
+    /// <paramref name="dateGroup"/> (the day, by default); other orders give one group.
+    /// </summary>
+    public List<(string Title, List<MediaRecord> Items)> Arrange(IEnumerable<MediaRecord> records, Func<MediaRecord, string>? dateGroup = null)
+    {
+        dateGroup ??= r => r.Taken is { } t ? t.ToString("dddd d MMMM yyyy", CultureInfo.CurrentCulture) : "No date";
+        var list = records.ToList();
+        IEnumerable<MediaRecord> ordered = Sort switch
+        {
+            Oldest => list.OrderBy(r => r.Taken is null).ThenBy(r => r.Taken).ThenBy(r => r.Path, StringComparer.OrdinalIgnoreCase),
+            ByName => list.OrderBy(r => r.FileName, StringComparer.CurrentCultureIgnoreCase).ThenBy(r => r.Path, StringComparer.OrdinalIgnoreCase),
+            Largest => list.OrderByDescending(r => r.Size),
+            MostPixels => list.OrderByDescending(r => (long)(r.Width ?? 0) * (r.Height ?? 0)).ThenByDescending(r => r.Size),
+            _ => list.OrderBy(r => r.Taken is null).ThenByDescending(r => r.Taken).ThenBy(r => r.Path, StringComparer.OrdinalIgnoreCase),
+        };
+        if (Sort is Newest or Oldest)
+            return ordered.GroupBy(dateGroup).Select(g => (g.Key, g.ToList())).ToList();
+        var all = ordered.ToList();
+        return all.Count == 0 ? [] : [(Sort, all)];
     }
 
     public bool Matches(MediaRecord r)

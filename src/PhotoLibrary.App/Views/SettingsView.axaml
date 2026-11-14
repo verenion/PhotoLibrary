@@ -168,14 +168,33 @@
                     <Border Classes="card" DataContext="{Binding Backup}">
                         <StackPanel Spacing="8" x:DataType="vm:BackupViewModel">
                             <TextBlock Classes="h" Text="Backup" />
-                            <TextBlock Classes="hint" Text="Copies the library, including vaults (still encrypted), and Keepsake's database into another folder, ideally on another drive. Only new and changed files are copied. Nothing in the backup is ever deleted: older versions and files you remove from the library move to its _Archive folder. Backups run while Keepsake is open." />
+                            <TextBlock Classes="hint" Text="Copies the library, including vaults, and Keepsake's database into another folder, ideally on another drive or a cloud folder such as OneDrive. Only new and changed files are copied. Backups run while Keepsake is open." />
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Left" Text="Format" Width="160" VerticalAlignment="Center" />
+                                <ComboBox ItemsSource="{Binding FormatOptions}" SelectedItem="{Binding Format, Mode=TwoWay}" MinWidth="260" IsEnabled="{Binding !IsRunning}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:BackupViewModel+FormatOption">
+                                            <TextBlock Text="{Binding Label}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </DockPanel>
+                            <TextBlock Classes="hint" Text="{Binding FormatHint}" />
                             <DockPanel>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="8,0,0,0">
                                     <Button Content="Choose…" Click="ChooseBackupFolderClick" IsEnabled="{Binding !IsRunning}" />
-                                    <Button Content="Turn off" Command="{Binding ClearFolderCommand}" IsVisible="{Binding HasFolder}" IsEnabled="{Binding !IsRunning}" />
+                                    <Button Content="Turn off" Command="{Binding ClearFolderCommand}" IsVisible="{Binding HasFolder}" IsEnabled="{Binding !IsRunning}"
+                                            ToolTip.Tip="Stop backing up. The backup folder and everything in it is left as it is." />
                                 </StackPanel>
-                                <TextBox Text="{Binding Folder, Mode=OneWay}" IsReadOnly="True" Watermark="No backup folder chosen" />
+                                <TextBox Text="{Binding Folder, Mode=OneWay}" IsReadOnly="True" PlaceholderText="No backup folder chosen" />
                             </DockPanel>
+                            <Border Classes="warn" IsVisible="{Binding NeedsUnlock}">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="Enter password…" Command="{Binding UnlockCommand}" Margin="8,0,0,0" />
+                                    <TextBlock TextWrapping="Wrap" FontSize="12" VerticalAlignment="Center"
+                                               Text="This PC doesn't have the backup password yet, so backups can't run. Enter the password or the recovery key once and Keepsake remembers it." />
+                                </DockPanel>
+                            </Border>
                             <DockPanel>
                                 <TextBlock DockPanel.Dock="Left" Text="Back up" Width="160" VerticalAlignment="Center" />
                                 <ComboBox ItemsSource="{Binding ScheduleOptions}" SelectedItem="{Binding Schedule, Mode=TwoWay}" MinWidth="260">
@@ -186,11 +205,27 @@
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
                             </DockPanel>
+                            <DockPanel IsVisible="{Binding IsEncrypted}">
+                                <TextBlock DockPanel.Dock="Left" Text="Keep earlier versions" Width="160" VerticalAlignment="Center" />
+                                <ComboBox ItemsSource="{Binding KeepOptions}" SelectedItem="{Binding Keep, Mode=TwoWay}" MinWidth="260"
+                                          ToolTip.Tip="How far back you can restore. Older versions, and files only they still use, are cleaned up after each backup.">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:BackupViewModel+KeepOption">
+                                            <TextBlock Text="{Binding Label}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </DockPanel>
                             <TextBlock Classes="hint" Text="{Binding LastBackupText}" />
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Classes="accent" Content="Back up now" Command="{Binding BackUpNowCommand}" IsEnabled="{Binding CanRun}" />
-                                <Button Content="Cancel" Click="CancelBackupClick" IsVisible="{Binding IsRunning}" />
-                            </StackPanel>
+                            <WrapPanel>
+                                <Button Classes="accent" Content="Back up now" Command="{Binding BackUpNowCommand}" IsEnabled="{Binding CanRun}" Margin="0,0,8,4" />
+                                <Button Content="Cancel" Click="CancelBackupClick" IsVisible="{Binding IsRunning}" Margin="0,0,8,4" />
+                                <Button Content="Restore…" Click="RestoreClick" IsVisible="{Binding IsEncrypted}" IsEnabled="{Binding CanUseEncrypted}" Margin="0,0,8,4"
+                                        ToolTip.Tip="Restore everything, or some folders, from any kept version" />
+                                <Button Content="Check backup" Command="{Binding VerifyCommand}" IsVisible="{Binding IsEncrypted}" IsEnabled="{Binding CanUseEncrypted}" Margin="0,0,8,4"
+                                        ToolTip.Tip="Decrypt every file in the newest version and check it matches what was backed up" />
+                                <Button Content="Change password…" Command="{Binding ChangePasswordCommand}" IsVisible="{Binding IsEncrypted}" IsEnabled="{Binding CanUseEncrypted}" Margin="0,0,8,4" />
+                            </WrapPanel>
                             <ProgressBar Minimum="0" Maximum="100" Value="{Binding Progress}" Height="4" IsVisible="{Binding IsRunning}" />
                             <TextBlock Classes="hint" Text="{Binding ProgressText}" IsVisible="{Binding ProgressText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                         </StackPanel>

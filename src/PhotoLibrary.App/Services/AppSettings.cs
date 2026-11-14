@@ -180,6 +180,37 @@ public sealed class AppSettings
         set => _db.SetSetting("backup_schedule", value);
     }
 
+    /// <summary>
+    /// "encrypted" or "plain". Someone who already backs up to a folder keeps the plain copy they set up; a new
+    /// backup is encrypted unless they choose otherwise.
+    /// </summary>
+    public string BackupFormat
+    {
+        get => _db.GetSetting("backup_format") is "encrypted" or "plain" ? _db.GetSetting("backup_format")! : BackupFolder is null ? "encrypted" : "plain";
+        set => _db.SetSetting("backup_format", value);
+    }
+
+    /// <summary>Days an encrypted backup keeps older versions; 0 keeps them forever.</summary>
+    public int BackupKeepDays
+    {
+        get => Math.Max(0, GetInt("backup_keep_days", 365));
+        set => Set("backup_keep_days", Math.Max(0, value));
+    }
+
+    /// <summary>
+    /// The encrypted backup's key, protected for this Windows user (DPAPI), so scheduled backups run without asking.
+    /// Paired with the id of the backup it belongs to.
+    /// </summary>
+    public (string BackupId, string ProtectedKey)? BackupKey
+    {
+        get => _db.GetSetting("backup_key_id") is { Length: > 0 } id && _db.GetSetting("backup_key") is { Length: > 0 } k ? (id, k) : null;
+        set
+        {
+            _db.SetSetting("backup_key_id", value?.BackupId ?? "");
+            _db.SetSetting("backup_key", value?.ProtectedKey ?? "");
+        }
+    }
+
     /// <summary>When the last backup finished without errors.</summary>
     public DateTime? LastBackupUtc
     {

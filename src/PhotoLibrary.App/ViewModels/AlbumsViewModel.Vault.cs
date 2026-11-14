@@ -31,8 +31,8 @@ public partial class AlbumsViewModel
         var folder = State.Albums.FolderFor(vm.Album);
         var ok = await _main.PromptPassword($"Unlock “{vm.Name}”", why, async pw =>
         {
-            try { await _main.Vaults.UnlockAsync(vm.Album, folder, pw); return null; }
-            catch (VaultAuthenticationException ex) { return ex.Message; }
+            try { return await _main.Vaults.TryUnlockAsync(vm.Album, folder, pw) ? null : VaultCrypto.WrongPassword; }
+            catch (VaultAuthenticationException ex) { return ex.Message; } // a damaged key file
         });
         if (ok && Vault is { } v && ReferenceEquals(v.Album, vm)) v.LoadItems();
         return ok;
@@ -107,10 +107,12 @@ public partial class AlbumsViewModel
         {
             try
             {
-                await Task.Run(() => VaultStore.ChangePassword(State.Albums.FolderFor(album), current, newPw, State.Albums.Kdf));
-                _main.StatusText = $"Changed the password of “{album.Name}”.";
+                var changed = await Task.Run(() => VaultStore.TryChangePassword(State.Albums.FolderFor(album), current, newPw, State.Albums.Kdf));
+                _main.StatusText = changed
+                    ? $"Changed the password of “{album.Name}”."
+                    : "The current password was wrong; the password was not changed.";
             }
-            catch (VaultAuthenticationException) { _main.StatusText = "The current password was wrong; the password was not changed."; }
+            catch (VaultAuthenticationException ex) { _main.StatusText = "The password was not changed: " + ex.Message; }
         }
         else _main.StatusText = $"Saved album “{album.Name}”.";
         Reload();

@@ -65,6 +65,9 @@
                     </StackPanel>
                 </Grid>
             </Border>
+            <Border DockPanel.Dock="Top" Margin="12,0,12,8" IsVisible="{Binding ShowFilterBar}">
+                <views:FilterBar DataContext="{Binding Filter}" />
+            </Border>
             <ContentControl DockPanel.Dock="Top" Content="{Binding Vault}" IsVisible="{Binding SelectedIsSecure}" />
             <Panel IsVisible="{Binding !SelectedIsSecure}">
                 <TextBlock Text="{Binding EmptyText}" IsVisible="{Binding EmptyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"

@@ -26,6 +26,8 @@ public partial class AlbumsViewModel : ViewModelBase
     public AlbumsViewModel(MainViewModel main)
     {
         _main = main;
+        // The album grid has its own filters and order, separate from the library's.
+        Filter.Changed += () => { if (Filter.IsCustomised || _filterWasCustomised) LoadItems(); _filterWasCustomised = Filter.IsCustomised; };
         main.PhotosRemoved += OnPhotosRemoved;
         main.PropertyChanged += (_, e) =>
         {
@@ -41,6 +43,14 @@ public partial class AlbumsViewModel : ViewModelBase
 
     public ObservableCollection<AlbumViewModel> Albums { get; } = [];
     public ObservableCollection<DayGroupViewModel> Groups { get; } = [];
+    public LibraryFilterViewModel Filter { get; } = new();
+    private bool _filterWasCustomised;
+
+    /// <summary>How many items the album had when its grid was last built, before filtering.</summary>
+    private int _loadedCount = -1;
+
+    /// <summary>The filter bar shows for an ordinary album with something in it.</summary>
+    public bool ShowFilterBar => SelectedAlbum is { IsSecure: false } && (_loadedCount > 0 || Filter.IsActive);
 
     [ObservableProperty] public partial AlbumViewModel? SelectedAlbum { get; set; }
     [ObservableProperty] public partial string HeaderText { get; set; } = "";
@@ -73,7 +83,7 @@ public partial class AlbumsViewModel : ViewModelBase
         HasAlbums = Albums.Count > 0;
         var selected = keep is { } id ? Albums.FirstOrDefault(a => a.Id == id) : null;
         if (!ReferenceEquals(selected, SelectedAlbum)) SelectedAlbum = selected;
-        else if (selected is { IsSecure: false } && selected.Count != Groups.Sum(g => g.Photos.Count)) LoadItems(); // membership changed
+        else if (selected is { IsSecure: false } && selected.Count != _loadedCount) LoadItems(); // membership changed
         else if (selected is not null) HeaderText = $"{selected.Name}  ·  {selected.Count:N0} items";
         if (SelectedAlbum is null)
             EmptyText = HasAlbums ? "Select an album." : "No albums yet. Create one here, or right-click photos anywhere and choose “Add to album”.";
@@ -93,6 +103,8 @@ public partial class AlbumsViewModel : ViewModelBase
     {
         foreach (var g in Groups) foreach (var p in g.Photos) p.ReleaseThumbnail();
         Groups.Clear();
+        _loadedCount = -1;
+        OnPropertyChanged(nameof(ShowFilterBar));
         if (SelectedAlbum is not { } album)
         {
             HeaderText = "";
@@ -105,12 +117,15 @@ public partial class AlbumsViewModel : ViewModelBase
             EmptyText = "";
             return;
         }
-        var records = State.Db.GetAlbumItems(album.Id);
-        HeaderText = $"{album.Name}  ·  {records.Count:N0} items";
-        EmptyText = records.Count == 0 ? "This album is empty. Right-click photos in the Library (or any search result) and choose “Add to album”." : "";
-        var grouped = records.GroupBy(r => r.Taken is { } t ? t.ToString("dddd d MMMM yyyy", CultureInfo.CurrentCulture) : "No date");
-        foreach (var g in grouped)
-            Groups.Add(new DayGroupViewModel(g.Key, g.Select(r => new PhotoViewModel(r, _main, SelectInGrid))));
+        var all = State.Db.GetAlbumItems(album.Id);
+        _loadedCount = all.Count;
+        OnPropertyChanged(nameof(ShowFilterBar));
+        var records = Filter.IsActive ? all.Where(Filter.Matches).ToList() : all;
+        HeaderText = Filter.IsActive ? $"{album.Name}  ·  {records.Count:N0} of {all.Count:N0} items" : $"{album.Name}  ·  {all.Count:N0} items";
+        EmptyText = all.Count == 0 ? "This album is empty. Right-click photos in the Library (or any search result) and choose “Add to album”."
+            : records.Count == 0 ? "Nothing in this album matches the filters." : "";
+        foreach (var (title, items) in Filter.Arrange(records))
+            Groups.Add(new DayGroupViewModel(title, items.Select(r => new PhotoViewModel(r, _main, SelectInGrid))));
         RemoveSelectedFromAlbumCommand.NotifyCanExecuteChanged();
         SetCoverCommand.NotifyCanExecuteChanged();
     }

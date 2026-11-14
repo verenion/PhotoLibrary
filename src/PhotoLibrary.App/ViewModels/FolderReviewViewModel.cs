@@ -16,7 +16,7 @@ public sealed partial class FolderRowViewModel : ViewModelBase
         Current = current;
         // Undecided: suggest "date" only when the files inside really follow a date layout (or there are none).
         var looksDated = info.Files == 0 || info.Matching >= info.Files * 0.8;
-        Choice = info.Role switch
+        Choice = info.Empty ? DeleteChoice : info.Role switch
         {
             FolderRole.Date => 0,
             FolderRole.Undecided => looksDated ? 0 : 1,
@@ -28,6 +28,9 @@ public sealed partial class FolderRowViewModel : ViewModelBase
     private DateLayout Current { get; }
 
     public string Name => Info.Name;
+
+    /// <summary>Only a folder with nothing at all in it can be deleted from here.</summary>
+    public bool CanDelete => Info.Empty;
     public bool IsUndecided => Info.Role == FolderRole.Undecided;
 
     public string Detail
@@ -41,7 +44,8 @@ public sealed partial class FolderRowViewModel : ViewModelBase
                 FolderRole.Album => "Folder album",
                 _ => "Named like a date: waiting for you",
             };
-            if (Info.Files == 0) return $"{now} · empty";
+            if (Info.Empty) return $"{now} · completely empty";
+            if (Info.Files == 0) return $"{now} · no photos or videos, but other files inside";
             var layout = Info.Detected is { } l && Info.Matching > 0
                 ? $" · {Info.Matching:N0} of them in a {l.Example}-style layout"
                 : Info.Detected is not null ? " · not in any date layout" : "";
@@ -49,16 +53,20 @@ public sealed partial class FolderRowViewModel : ViewModelBase
         }
     }
 
-    /// <summary>0 = date folder, 1 = album.</summary>
+    public const int DateChoice = 0, AlbumChoice = 1, DeleteChoice = 2;
+
+    /// <summary>0 = date folder, 1 = album, 2 = delete (empty folders only).</summary>
     [ObservableProperty, NotifyPropertyChangedFor(nameof(Warning), nameof(HasWarning))]
     public partial int Choice { get; set; }
 
-    public bool AsDate => Choice == 0;
+    public bool AsDate => Choice == DateChoice;
+    public bool ToDelete => Choice == DeleteChoice && CanDelete;
 
     partial void OnChoiceChanged(int value) => _owner?.ChoicesChanged();
 
     public string? Warning =>
-        Choice == 1 && Current.MatchesTop(Name)
+        ToDelete ? $"“{Name}” and any empty folders inside it will be deleted when you save."
+        : Choice == 1 && Current.MatchesTop(Name)
             ? $"While “{Name}” is an album, photos whose date folder would be “{Name}” are left where they are instead of being filed into it."
             : Choice == 0 && Info.Files > 0 && Info.Detected is not null && Info.Matching < Info.Files
                 ? $"Organise will re-file {Info.Files - Info.Matching:N0} files in here that aren't in the date layout."
@@ -111,7 +119,8 @@ public sealed partial class FolderReviewViewModel : ViewModelBase
     public void SetAll(int choice)
     {
         _loading = true;
-        foreach (var r in Rows) r.Choice = choice;
+        // Empty folders keep their own choice (delete, by default); the bulk buttons are about folders with photos.
+        foreach (var r in Rows.Where(r => !r.CanDelete)) r.Choice = choice;
         _loading = false;
         ChoicesChanged();
     }
@@ -132,7 +141,14 @@ public sealed partial class FolderReviewViewModel : ViewModelBase
     {
         var albums = _main.State.Albums;
         var changed = 0;
-        foreach (var r in Rows)
+        var deleted = 0;
+        var problems = new List<string>();
+        foreach (var r in Rows.Where(r => r.ToDelete))
+        {
+            if (albums.DeleteEmptyFolder(r.Name) is { } problem) problems.Add(problem);
+            else deleted++;
+        }
+        foreach (var r in Rows.Where(r => !r.ToDelete))
         {
             var want = r.AsDate ? FolderRole.Date : FolderRole.Album;
             if (r.Info.Role == want) continue;
@@ -141,7 +157,11 @@ public sealed partial class FolderReviewViewModel : ViewModelBase
         }
         if (SuggestedLayout is { } l && UseSuggestedLayout) _main.State.Settings.DateLayout = l;
         _main.RefreshFolderState();
-        _main.StatusText = changed == 0 ? "No folder changes." : $"Updated {changed:N0} folder{(changed == 1 ? "" : "s")}.";
+        var parts = new List<string>();
+        if (changed > 0) parts.Add($"Updated {changed:N0} folder{(changed == 1 ? "" : "s")}.");
+        if (deleted > 0) parts.Add($"Deleted {deleted:N0} empty folder{(deleted == 1 ? "" : "s")}.");
+        parts.AddRange(problems);
+        _main.StatusText = parts.Count == 0 ? "No folder changes." : string.Join(" ", parts);
         await _main.RescanAsync();
     }
 }

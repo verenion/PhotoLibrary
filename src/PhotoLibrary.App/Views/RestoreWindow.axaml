@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PhotoLibrary.App.ViewModels"
+        x:Class="PhotoLibrary.App.Views.RestoreWindow"
+        x:DataType="vm:RestoreViewModel"
+        Title="Restore from backup" Width="640" Height="600" MinWidth="520" MinHeight="460"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <DockPanel Margin="20">
+        <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,12">
+            <TextBlock Text="Restore from backup" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock TextWrapping="Wrap" Opacity="0.8" FontSize="13"
+                       Text="Each version is the library as it was when that backup ran. Files are restored into their folders under the folder you choose. Nothing that's already there is overwritten." />
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Bottom" Spacing="10" Margin="0,12,0,0">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Choose…" Click="ChooseTargetClick" Margin="8,0,0,0" IsEnabled="{Binding !IsRunning}" />
+                <Button DockPanel.Dock="Right" Content="The library" Click="LibraryTargetClick" Margin="8,0,0,0" IsEnabled="{Binding !IsRunning}"
+                        ToolTip.Tip="Bring back only what's missing from the library" />
+                <TextBlock DockPanel.Dock="Left" Text="Restore into" Width="110" VerticalAlignment="Center" />
+                <TextBox Text="{Binding Target, Mode=OneWay}" IsReadOnly="True" PlaceholderText="Choose a folder" />
+            </DockPanel>
+            <TextBlock FontSize="12" Opacity="0.7" TextWrapping="Wrap" IsVisible="{Binding IntoLibrary}"
+                       Text="Restoring into the library brings back only files that are missing; the next scan picks them up." />
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left" Text="Only" Width="110" VerticalAlignment="Center" />
+                <TextBox Text="{Binding Only}" PlaceholderText="Everything, or paths containing… (e.g. 2019 or Camera Roll)" />
+            </DockPanel>
+            <ProgressBar Minimum="0" Maximum="100" Value="{Binding Progress}" Height="4" IsVisible="{Binding IsRunning}" />
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button Content="Cancel restore" Click="CancelRestoreClick" IsVisible="{Binding IsRunning}" />
+                <Button Content="Close" Click="CloseClick" IsEnabled="{Binding !IsRunning}" MinWidth="90" />
+                <Button Classes="accent" Content="Restore" Command="{Binding RestoreCommand}" MinWidth="110" />
+            </StackPanel>
+        </StackPanel>
+
+        <ListBox ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedVersion, Mode=TwoWay}">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:RestoreViewModel+VersionRow">
+                    <StackPanel Spacing="1">
+                        <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding Detail}" FontSize="12" Opacity="0.7" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </DockPanel>
+</Window>

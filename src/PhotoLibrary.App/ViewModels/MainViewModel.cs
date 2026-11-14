@@ -26,7 +26,7 @@ public partial class MainViewModel : ViewModelBase
         LibraryRoot = state.LibraryRoot;
         Ai = new AiPanelViewModel(this);
         Filter = new LibraryFilterViewModel();
-        Filter.Changed += () => { if (Filter.IsActive || _filterWasActive) LoadGroups(SelectedNode); _filterWasActive = Filter.IsActive; };
+        Filter.Changed += () => { if (Filter.IsCustomised || _filterWasCustomised) LoadGroups(SelectedNode); _filterWasCustomised = Filter.IsCustomised; };
         Albums = new AlbumsViewModel(this);
         Duplicates = new DuplicatesViewModel(this);
         Quality = new QualityViewModel(this);
@@ -56,6 +56,12 @@ public partial class MainViewModel : ViewModelBase
     /// says whether a password was accepted. Wired up by the window.
     /// </summary>
     public Func<string, string, Func<string, Task<string?>>, Task<bool>>? PromptPassword { get; set; }
+
+    /// <summary>Asks for a new password (typed twice): title, message. Null when cancelled. Wired up by the window.</summary>
+    public Func<string, string, Task<string?>>? PromptNewPassword { get; set; }
+
+    /// <summary>Shows a backup recovery key once, until the user says it's saved. Wired up by the window.</summary>
+    public Func<string, Task>? ShowRecoveryKey { get; set; }
 
     /// <summary>Asks the user a yes/no question. Wired up by the window; a headless host leaves it null and gets "no".</summary>
     public Func<string, string, string, Task<bool>>? Confirm { get; set; }
@@ -100,7 +106,7 @@ public partial class MainViewModel : ViewModelBase
 
     private int _progressGeneration;
     private bool _initialized;
-    private bool _filterWasActive;
+    private bool _filterWasCustomised;
 
     /// <summary>Progress reports arrive asynchronously; ones from a finished operation must not overwrite the final status.</summary>
     public IProgress<ScanProgress> NewProgress()
@@ -239,11 +245,11 @@ public partial class MainViewModel : ViewModelBase
             _ => "Undated",
         } + (Filter.IsActive ? $"  ·  {records.Count:N0} of {all.Count:N0} items" : $"  ·  {records.Count:N0} items");
 
-        IEnumerable<IGrouping<string, MediaRecord>> grouped = node.Kind == NodeKind.Undated
-            ? records.GroupBy(r => Path.GetRelativePath(State.LibraryRoot, Path.GetDirectoryName(r.Path) ?? ""))
-            : records.OrderByDescending(r => r.Taken).GroupBy(r => r.Taken!.Value.ToString("dddd d MMMM yyyy", CultureInfo.CurrentCulture));
-        foreach (var g in grouped)
-            Groups.Add(new DayGroupViewModel(g.Key, g.Select(r => new PhotoViewModel(r, this, SelectInGrid))));
+        var grouped = Filter.Arrange(records, node.Kind == NodeKind.Undated
+            ? r => Path.GetRelativePath(State.LibraryRoot, Path.GetDirectoryName(r.Path) ?? "")
+            : null);
+        foreach (var (title, items) in grouped)
+            Groups.Add(new DayGroupViewModel(title, items.Select(r => new PhotoViewModel(r, this, SelectInGrid))));
     }
 
     // ---- album badges
@@ -267,6 +273,7 @@ public partial class MainViewModel : ViewModelBase
         foreach (var p in Albums.Groups.SelectMany(g => g.Photos)) p.RefreshAlbums();
         foreach (var p in Ai.Results) p.RefreshAlbums();
         Filter.RefreshOptions(State.Library, Albums.Albums.Where(a => !a.IsSecure).ToList(), memberships); // raises Changed, so an active filter re-applies
+        Albums.Filter.RefreshOptions(State.Library, Albums.Albums.Where(a => !a.IsSecure).ToList(), memberships);
     }
 
     // ---- selection (shared by every grid: library, AI results, duplicates, quality)

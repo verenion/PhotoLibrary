@@ -105,26 +105,8 @@
                     <!-- Thumbnail grid -->
                     <DockPanel Grid.Column="2">
                         <TextBlock DockPanel.Dock="Top" Text="{Binding HeaderText}" FontSize="18" FontWeight="SemiBold" Margin="12,10,12,4" />
-                        <!-- Filter bar -->
-                        <WrapPanel DockPanel.Dock="Top" Margin="12,0,12,8" DataContext="{Binding Filter}" x:DataType="vm:LibraryFilterViewModel">
-                            <WrapPanel.Styles>
-                                <Style Selector="ComboBox">
-                                    <Setter Property="Margin" Value="0,0,6,4" />
-                                    <Setter Property="MinWidth" Value="120" />
-                                    <Setter Property="FontSize" Value="12" />
-                                    <Setter Property="Padding" Value="8,4" />
-                                </Style>
-                            </WrapPanel.Styles>
-                            <ComboBox ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding Type, Mode=TwoWay}" ToolTip.Tip="File type" />
-                            <ComboBox ItemsSource="{Binding CameraOptions}" SelectedItem="{Binding Camera, Mode=TwoWay}" ToolTip.Tip="Camera" MaxWidth="220" />
-                            <ComboBox ItemsSource="{Binding LocationOptions}" SelectedItem="{Binding Location, Mode=TwoWay}" ToolTip.Tip="GPS location" />
-                            <ComboBox ItemsSource="{Binding SizeOptions}" SelectedItem="{Binding Size, Mode=TwoWay}" ToolTip.Tip="File size" />
-                            <ComboBox ItemsSource="{Binding ResolutionOptions}" SelectedItem="{Binding Resolution, Mode=TwoWay}" ToolTip.Tip="Megapixels" />
-                            <ComboBox ItemsSource="{Binding ShapeOptions}" SelectedItem="{Binding Shape, Mode=TwoWay}" ToolTip.Tip="Landscape, portrait or square" />
-                            <ComboBox ItemsSource="{Binding AlbumOptions}" SelectedItem="{Binding AlbumChoice, Mode=TwoWay}" ToolTip.Tip="Album membership" MaxWidth="220" />
-                            <TextBox Text="{Binding NameContains, Mode=TwoWay}" Watermark="File name contains…" Width="170" FontSize="12" Padding="8,4" Margin="0,0,6,4" />
-                            <Button Content="Clear filters" Command="{Binding ClearCommand}" IsVisible="{Binding IsActive}" FontSize="12" Padding="8,4" Margin="0,0,0,4" />
-                        </WrapPanel>
+                        <!-- Sort and filter bar -->
+                        <views:FilterBar DockPanel.Dock="Top" Margin="12,0,12,8" DataContext="{Binding Filter}" />
                         <ScrollViewer x:Name="GridScroll">
                             <ItemsControl ItemsSource="{Binding Groups}" Margin="8,0,8,12">
                                 <ItemsControl.ItemsPanel>

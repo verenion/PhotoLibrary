@@ -404,6 +404,24 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
         else throw new ArgumentOutOfRangeException(nameof(role), "A folder can only be made a date folder or an album.");
     }
 
+    /// <summary>
+    /// Deletes an empty top-level folder (nothing in it but housekeeping files and empty sub-folders) and forgets
+    /// it as a date folder or folder album. Returns null on success, or why it was left alone.
+    /// </summary>
+    public string? DeleteEmptyFolder(string folder)
+    {
+        if (folder.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0 || folder is "." or "..")
+            throw new ArgumentException("Expected a top-level folder name.", nameof(folder));
+        if (Folders().RoleOf(folder) is FolderRole.Keepsake or FolderRole.Hidden)
+            return $"“{folder}” is one of Keepsake's own folders, so it was left alone.";
+        if (EmptyFolders.Delete(Path.Combine(Root, folder)) is { } problem) return problem;
+        db.RemoveDateFolders([folder]);
+        foreach (var album in db.GetAlbums().Where(a => a.IsPhysical && Scanner.PathComparer.Equals(Album.FolderName(a.Name), folder)
+                     && !Directory.Exists(FolderFor(a)) && db.GetAlbumItemIds(a.Id).Count == 0))
+            db.DeleteAlbum(album.Id);
+        return null;
+    }
+
     // ---- moving
 
     private (int Moved, List<(long, string)> Relocated, List<(string Path, string Message)> Errors) MoveInto(List<MediaRecord> records, string folder) =>

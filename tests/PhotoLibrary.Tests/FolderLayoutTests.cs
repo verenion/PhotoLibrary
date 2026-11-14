@@ -168,6 +168,43 @@ public class FolderLayoutTests : IDisposable
         Assert.Null(_albums.FolderProblem("2012 Holiday"));
         Assert.Throws<InvalidOperationException>(() => _albums.Create("2012", AlbumKind.Physical));
     }
+
+    [Fact]
+    public void OnlyCompletelyEmptyFoldersAreOfferedForDeletion()
+    {
+        Directory.CreateDirectory(Path.Combine(Lib, "Empty", "Nested", "Deeper"));
+        File.WriteAllText(Path.Combine(Lib, "Empty", "Nested", "desktop.ini"), "");
+        Directory.CreateDirectory(Path.Combine(Lib, "2015"));
+        Directory.CreateDirectory(Path.Combine(Lib, "Docs"));
+        File.WriteAllText(Path.Combine(Lib, "Docs", "notes.txt"), "keep me");
+        File_(@"Trip\a.jpg", May31);
+        _albums.SetRole("2015", FolderRole.Date);
+
+        var survey = _albums.Folders().Survey(_db.GetLibrary()).ToDictionary(f => f.Name);
+        Assert.True(survey["Empty"].Empty);
+        Assert.True(survey["2015"].Empty);
+        Assert.False(survey["Docs"].Empty);   // no photos, but not empty
+        Assert.False(survey["Trip"].Empty);
+
+        Assert.Null(_albums.DeleteEmptyFolder("Empty"));
+        Assert.Null(_albums.DeleteEmptyFolder("2015"));
+        Assert.False(Directory.Exists(Path.Combine(Lib, "Empty")));
+        Assert.DoesNotContain("2015", _db.GetDateFolders());
+
+        // Something arrived after the review was opened: it is left alone.
+        Assert.NotNull(_albums.DeleteEmptyFolder("Docs"));
+        Assert.True(File.Exists(Path.Combine(Lib, "Docs", "notes.txt")));
+        Assert.Throws<ArgumentException>(() => _albums.DeleteEmptyFolder(@"..\x"));
+    }
+
+    [Fact]
+    public void DeletingAnEmptyAlbumFolderForgetsTheAlbum()
+    {
+        var album = _albums.Create("Party", AlbumKind.Physical);
+        Assert.True(Directory.Exists(_albums.FolderFor(album)));
+        Assert.Null(_albums.DeleteEmptyFolder("Party"));
+        Assert.DoesNotContain(_db.GetAlbums(), a => a.Name == "Party");
+    }
 }
 
 /// <summary>Duplicates: a copy in an album is kept when that loses nothing.</summary>

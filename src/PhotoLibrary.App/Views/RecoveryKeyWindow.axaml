@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PhotoLibrary.App.Views.RecoveryKeyWindow"
+        Title="Your backup recovery key" Width="520" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <StackPanel Margin="20" Spacing="12">
+        <TextBlock Text="Save your recovery key" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock TextWrapping="Wrap"
+                   Text="This key opens your backup if you forget the password. It's shown only now. Write it down or save it somewhere safe that isn't this PC or the backup itself, such as a password manager or a printed copy." />
+        <Border Classes="card" Padding="14">
+            <SelectableTextBlock x:Name="KeyText" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="17" FontWeight="SemiBold"
+                                 HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" />
+        </Border>
+        <Button x:Name="CopyButton" Content="Copy to clipboard" Click="CopyClick" HorizontalAlignment="Left" />
+        <Border Classes="warn">
+            <TextBlock TextWrapping="Wrap" FontSize="12"
+                       Text="Without the password or this key, nobody, including you, can restore the backup. There's no other way in." />
+        </Border>
+        <CheckBox x:Name="SavedBox" Content="I've saved my recovery key somewhere safe" IsCheckedChanged="SavedChanged" />
+        <Button x:Name="DoneButton" Classes="accent" Content="Done" HorizontalAlignment="Right" MinWidth="100" IsEnabled="False" Click="DoneClick" />
+    </StackPanel>
+</Window>

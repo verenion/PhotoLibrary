@@ -83,13 +83,22 @@ public static class VaultCrypto
         return output;
     }
 
-    public static byte[] UnwrapKey(byte[] kek, byte[] wrapped, string vaultId)
+    public static byte[] UnwrapKey(byte[] kek, byte[] wrapped, string vaultId) =>
+        TryUnwrapKey(kek, wrapped, vaultId) ?? throw new VaultAuthenticationException(WrongPassword);
+
+    public const string WrongPassword = "Wrong password.";
+
+    /// <summary>
+    /// The vault key, or null when <paramref name="kek"/> came from the wrong password. A mistyped password is
+    /// ordinary input, so it isn't an exception; a damaged key file still is.
+    /// </summary>
+    public static byte[]? TryUnwrapKey(byte[] kek, byte[] wrapped, string vaultId)
     {
         if (wrapped.Length != NonceSize + KeySize + TagSize) throw new VaultAuthenticationException("The vault key file is damaged.");
         var key = new byte[KeySize];
         using var gcm = new AesGcm(kek, TagSize);
         try { gcm.Decrypt(wrapped.AsSpan(0, NonceSize), wrapped.AsSpan(NonceSize, KeySize), wrapped.AsSpan(NonceSize + KeySize), key, Aad(vaultId)); }
-        catch (AuthenticationTagMismatchException) { throw new VaultAuthenticationException("Wrong password."); }
+        catch (AuthenticationTagMismatchException) { return null; }
         return key;
     }
 

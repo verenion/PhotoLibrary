@@ -90,21 +90,32 @@ public static class VaultStore
         ?? throw new VaultAuthenticationException("The vault key file is damaged.");
 
     /// <summary>Checks the password and returns the vault key. Throws <see cref="VaultAuthenticationException"/> if it's wrong.</summary>
-    public static byte[] Unlock(string dir, string password)
+    public static byte[] Unlock(string dir, string password) =>
+        TryUnlock(dir, password) ?? throw new VaultAuthenticationException(VaultCrypto.WrongPassword);
+
+    /// <summary>The vault key, or null when the password is wrong. A damaged or unreadable key file still throws.</summary>
+    public static byte[]? TryUnlock(string dir, string password)
     {
         var kf = ReadKeyFile(dir);
         if (kf.Kdf != "argon2id") throw new VaultAuthenticationException($"Unknown key derivation “{kf.Kdf}”.");
         var kek = VaultCrypto.DeriveKek(password, Convert.FromBase64String(kf.Salt), new KdfParams(kf.MemoryKiB, kf.Iterations, kf.Parallelism));
-        try { return VaultCrypto.UnwrapKey(kek, Convert.FromBase64String(kf.WrappedKey), kf.VaultId); }
+        try { return VaultCrypto.TryUnwrapKey(kek, Convert.FromBase64String(kf.WrappedKey), kf.VaultId); }
         finally { CryptographicOperations.ZeroMemory(kek); }
     }
 
     /// <summary>Re-wraps the same vault key under a new password; no photo is re-encrypted.</summary>
     public static void ChangePassword(string dir, string oldPassword, string newPassword, KdfParams? kdf = null)
     {
-        var key = Unlock(dir, oldPassword);
+        if (!TryChangePassword(dir, oldPassword, newPassword, kdf)) throw new VaultAuthenticationException(VaultCrypto.WrongPassword);
+    }
+
+    /// <summary>As <see cref="ChangePassword"/>, but returns false (changing nothing) when the old password is wrong.</summary>
+    public static bool TryChangePassword(string dir, string oldPassword, string newPassword, KdfParams? kdf = null)
+    {
+        if (TryUnlock(dir, oldPassword) is not { } key) return false;
         try { WriteKeyFile(dir, ReadKeyFile(dir).VaultId, newPassword, key, kdf ?? KdfParams.Default); }
         finally { CryptographicOperations.ZeroMemory(key); }
+        return true;
     }
 
     public static int CountItems(string dir) =>

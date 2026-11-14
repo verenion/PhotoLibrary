@@ -16,6 +16,8 @@ public partial class MainWindow : Window
             {
                 vm.Confirm = (title, message, confirmText) => ConfirmWindow.ShowAsync(this, title, message, confirmText);
                 vm.PromptPassword = (title, message, validate) => PasswordWindow.ShowAsync(this, title, message, validate);
+                vm.PromptNewPassword = (title, message) => NewPasswordWindow.ShowAsync(this, title, message);
+                vm.ShowRecoveryKey = key => RecoveryKeyWindow.ShowAsync(this, key);
                 Closing += (_, _) => { vm.Vaults.LockAll(); vm.Backup.Cancel(); };
                 // A new tree selection replaces the groups: start the grid from the top each time.
                 vm.Groups.CollectionChanged += (_, e) =>
